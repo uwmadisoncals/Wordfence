@@ -13,7 +13,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 ?>
 
 <div>
-	<form id="wfConfigForm">
+	<form id="wfConfigForm" style="overflow-x: auto;">
 		<table class="wf-striped-table"<?php echo !empty($inEmail) ? ' border=1' : '' ?>>
 			<?php foreach ($diagnostic->getResults() as $title => $tests): ?>
 				<tbody class="thead">
@@ -56,7 +56,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 			<tbody>
 			<?php
 			$howGet = wfConfig::get('howGetIPs', false);
-			list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVarible();
+			list($currentIP, $currentServerVarForIP) = wfUtils::getIPAndServerVariable();
 			foreach (array(
 				         'REMOTE_ADDR'           => 'REMOTE_ADDR',
 				         'HTTP_CF_CONNECTING_IP' => 'CF-Connecting-IP',
@@ -65,7 +65,43 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 			         ) as $variable => $label): ?>
 				<tr>
 					<td><?php echo $label ?></td>
-					<td><?php echo esc_html(array_key_exists($variable, $_SERVER) ? $_SERVER[$variable] : '(not set)') ?></td>
+					<td><?php 
+						if (!array_key_exists($variable, $_SERVER)) {
+							echo '(not set)';
+						}
+						else {
+							if (strpos($_SERVER[$variable], ',') !== false) {
+								$trustedProxies = explode("\n", wfConfig::get('howGetIPs_trusted_proxies', ''));
+								$items = preg_replace('/[\s,]/', '', explode(',', $_SERVER[$variable]));
+								$items = array_reverse($items);
+								$output = '';
+								$markedSelectedAddress = false;
+								foreach ($items as $index => $i) {
+									foreach ($trustedProxies as $proxy) {
+										if (!empty($proxy)) {
+											if (wfUtils::subnetContainsIP($proxy, $i) && $index < count($items) - 1) {
+												$output = esc_html($i) . ', ' . $output;
+												continue 2;
+											}
+										}
+									}
+									
+									if (!$markedSelectedAddress) {
+										$output = '<strong>' . esc_html($i) . '</strong>, ' . $output;
+										$markedSelectedAddress = true;
+									}
+									else {
+										$output = esc_html($i) . ', ' . $output;
+									}
+								}
+								
+								echo substr($output, 0, -2);
+							}
+							else {
+								echo esc_html($_SERVER[$variable]);
+							}
+						}
+						?></td>
 					<?php if ($currentServerVarForIP && $currentServerVarForIP === $variable): ?>
 						<td class="success">In use</td>
 					<?php elseif ($howGet === $variable): ?>
@@ -399,7 +435,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 				href="http://docs.wordfence.com/en/Wordfence_options#Send_a_test_email_from_this_WordPress_server_to_an_email_address"
 				target="_blank" class="wfhelp"></a>
 			<input type="text" id="testEmailDest" value="" size="20" maxlength="255" class="wfConfigElem"/>
-			<input class="button" type="button" value="Send Test Email"
+			<input class="wf-btn wf-btn-default" type="button" value="Send Test Email"
 			       onclick="WFAD.sendTestEmail(jQuery('#testEmailDest').val());"/>
 		</li>
 	</ul>
@@ -421,11 +457,11 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 					<td><input type="text" id="_ticketnumber" required/></td>
 				</tr>
 				<tr>
-					<td colspan="2" style="text-align: right;"><input class="button" type="button" id="doSendEmail" value="Send"/></td>
+					<td colspan="2" style="text-align: right;"><input class="wf-btn wf-btn-default" type="button" id="doSendEmail" value="Send"/></td>
 				</tr>
 			</table>
 		</div>
-		<input class="button" type="submit" id="sendByEmail" value="Send Report by Email"/>
+		<input class="wf-btn wf-btn-default" type="submit" id="sendByEmail" value="Send Report by Email"/>
 	</div>
 
 	<?php if (!WFWAF_SUBDIRECTORY_INSTALL): ?>
@@ -433,7 +469,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 		<h3>Firewall Rules</h3>
 
 		<p>
-			<button type="button" onclick="WFAD.wafUpdateRules()" class="wf-btn wf-btn-primary wf-btn-callout">
+			<button type="button" onclick="WFAD.wafUpdateRules()" class="wf-btn wf-btn-primary">
 				Manually refresh firewall rules
 			</button>
 <!--			<em id="waf-rules-last-updated"></em>-->
@@ -496,7 +532,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 			</tr>
 
 			<tr>
-				<th><label for="ssl_verify">Enable SSL Verification</label><a
+				<th><label class="wf-plain" for="ssl_verify">Enable SSL Verification</label><a
 						href="http://docs.wordfence.com/en/Wordfence_options#Enable_SSL_Verification"
 						target="_blank" class="wfhelp"></a>
 				</th>
@@ -509,7 +545,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 			</tr>
 
 			<tr>
-				<th><label for="betaThreatDefenseFeed">Enable beta threat defense feed</label></th>
+				<th><label class="wf-plain" for="betaThreatDefenseFeed">Enable beta threat defense feed</label></th>
 				<td style="vertical-align: top;"><input type="checkbox" id="betaThreatDefenseFeed"
 				                                        class="wfConfigElem"
 				                                        name="betaThreatDefenseFeed"
@@ -521,7 +557,7 @@ if (!isset($sendingDiagnosticEmail)) { $sendingDiagnosticEmail = false; }
 		<br>
 		<table border="0" cellpadding="0" cellspacing="0">
 			<tr>
-				<td><input type="button" id="button1" name="button1" class="button-primary" value="Save Changes"
+				<td><input type="button" id="button1" name="button1" class="wf-btn wf-btn-primary" value="Save Changes"
 				           onclick="WFAD.saveDebuggingConfig();"/></td>
 				<td style="height: 24px;">
 					<div class="wfAjax24"></div>
